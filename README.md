@@ -1,2 +1,2 @@
 # seinfeld
-<img src="https://imgur.com/a/SMhiyil">
+https://imgur.com/a/SMhiyil
