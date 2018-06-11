@@ -1,0 +1,5 @@
+name = Seinfeld
+description = Sick ass CRM for good people.
+core = 7.x
+configure = admin/config/system/seinfeld/settings
+dependencies[] = webform

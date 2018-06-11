@@ -1,0 +1,61 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function seinfeld_schema() {
+    $schema['seinfeld_forms'] = [
+      'fields' => [
+        'form_id' => [
+          'type' => 'varchar',
+          'length' => 255,
+          'description' => 'Primary Key: Form Id.',
+        ],
+        'campaign_id' => [
+          'type' => 'varchar',
+          'length' => 128,
+          'description' => 'Campaign ID.',
+        ],
+        'hasoffers_id' => [
+          'type' => 'varchar',
+          'length' => 128,
+          'default' => '',
+          'description' => 'Has Offer ID.',
+        ],
+        'first_name' => [
+          'type' => 'varchar',
+          'length' => 128,
+          'default' => '',
+          'description' => 'First name form input ID.',
+        ],
+        'last_name' => [
+          'type' => 'varchar',
+          'length' => 128,
+          'description' => 'Last name form input ID.',
+        ],
+        'phone_number' => [
+          'type' => 'varchar',
+          'length' => 128,
+          'default' => '',
+          'description' => 'Phone form input ID.',
+        ],
+        'email_address' => [
+          'type' => 'varchar',
+          'length' => 128,
+          'default' => '',
+          'description' => 'Email addresss form input ID.',
+        ],
+      ],
+      'primary key' => ['form_id'],
+    ];
+  
+    return $schema;
+  }
+  
+
+/**
+ * Implements hook_uninstall().
+ */
+function seinfeld_uninstall() {
+  db_drop_table('seinfeld_forms');
+}
