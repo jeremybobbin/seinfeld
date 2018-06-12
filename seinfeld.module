@@ -1,6 +1,12 @@
 <?php
-
-module_load_include('inc', 'seinfeld', 'seinfeld.functions');
+$includes = [
+    'admin.form',
+    'dao',
+    'functions',
+];
+foreach($includes as $i) {
+    module_load_include('inc', 'seinfeld', 'includes/' . $i);
+}
 
 /**
  * Implements hook_menu().
@@ -12,7 +18,7 @@ function seinfeld_menu() {
         'page callback' => 'drupal_get_form',
         'page arguments' => ['seinfeld_admin_settings'],
         'access arguments' => ['administer seinfeld'],
-        'file' => 'seinfeld.admin.inc',
+        'file' => 'includes/admin.form.inc',
     ];
   return $items;
 }
@@ -21,123 +27,50 @@ function seinfeld_menu() {
  * Implements hook_form_FORM_ID_alter().
  */
 function seinfeld_form_webform_node_form_alter(&$form, $form_state, $form_id) {
-
-    $elements = $form['webform']['#value']['components'];
-
-    $options = [];
-    foreach($elements as $el) {
-        $options[$el['form_key']] = $el['name'];
-    }
-
-    $form['#submit'][] = 'seinfeld_submit_handler';
-
-    $form['seinfeld'] = [
-        '#type' => 'fieldset',
-        '#title' => 'Seinfeld',
-        '#access' => TRUE,
-        '#group' => 'additional_settings',
-        '#attributes' => [
-            'class' => 'node-form-seinfeld'
-        ],
-        'enabled' => [
-            '#type' => 'checkbox',
-            '#title' => 'Enable Seinfeld CRM on this form',
-            '#access' => TRUE,
-        ],
-        'link' => [
-            '#type' => 'container',
-            '#parents' => ['seinfeld'],
-            'campaign_id' => [
-                '#type' => 'textfield',
-                '#title' => 'Campaign ID',
-                '#access' => TRUE,
-            ],
-            'hasoffers_id' => [
-                '#type' => 'textfield',
-                '#title' => 'HasOffers Offer ID',
-                '#access' => TRUE,
-            ],
-            'first_name' => [
-                '#type' => 'select',
-                '#title' => 'First Name Field',
-                '#access' => TRUE,
-                '#options' => $options,
-            ],
-            'last_name' => [
-                '#type' => 'select',
-                '#title' => 'Last Name Field',
-                '#access' => TRUE,
-                '#options' => $options,
-            ],
-            'phone_number' => [
-                '#type' => 'select',
-                '#title' => 'Phone Number Field',
-                '#access' => TRUE,
-                '#options' => $options,
-            ],
-            'email_address' => [
-                '#type' => 'select',
-                '#title' => 'Email Address Field',
-                '#access' => TRUE,
-                '#options' => $options,
-            ],
-        ],
-    ];
+    seinfeld_tab_form($form);
 }
 
 /**
- *  Webform node 'Seinfeld' tab form submit callback
+ *  Webform node submit callback
  */
 function seinfeld_submit_handler($form, &$form_state) {
     $values = $form_state['input'];
     $nid = $form_state['complete form']['nid']['#value'];
-    $nid = $nid ? $nid : 20;
-
-    $result = get_seinfeld_form_with_id($nid);
-
-    dpm($result);
-
-    if($result) {
-        db_update('seinfeld_forms', 'sf')
-            ->fields([
-                'campaign_id'   => $values['campaign_id'],
-                'hasoffers_id'  => $values['hasoffers_id'],
-                'first_name'    => $values['first_name'],
-                'last_name'     => $values['last_name'],
-                'phone_number'  => $values['phone_number'],
-                'email_address' => $values['email_address']
-            ])
-            ->condition('sf.form_id', $nid,'=')
-            ->execute();
-    } else {
-        db_insert('seinfeld_forms')
-            ->fields([
-                'form_id'       => $nid,
-                'campaign_id'   => $values['campaign_id'],
-                'hasoffers_id'  => $values['hasoffers_id'],
-                'first_name'    => $values['first_name'],
-                'last_name'     => $values['last_name'],
-                'phone_number'  => $values['phone_number'],
-                'email_address' => $values['email_address']
-            ])
-            ->execute();
-    }
+    SeinfeldDao::put_form($nid, $values);
 }
 
 /**
  * Implements hook_form_alter().
  */
 function seinfeld_form_alter(&$form, $form_state, $form_id) {
-  $form_id = explode('_', $form_id);
-
-  if($form_id[1] == 'client' && $form = get_seinfeld_form_with_id($form_id[3])) {
-    $identity = seinfeld_lead_identity_api_call($kylepro_form);
-
-    $form['identity'] = [
-      '#type' => 'value',
-      '#value' => $identity,
-    ];
-
-    array_unshift($form['#submit'], 'kylepro_form_submit');
-  }
+    $sf = get_valid_seinfeld_form($form_id);
+    if($sf) {
+        $identity = seinfeld_lead_identity_api_call($sf);
+        $form['identity'] = [
+            '#type' => 'value',
+            '#value' => $identity,
+        ];
+        array_unshift($form['#submit'], 'seinfeld_form_submit');
+    }
 }
+
+/**
+ * Submit callback for Seinfeld enabled forms
+ */
+function seinfeld_form_submit($form, &$form_state) {
+    $form_id = $form['#form_id'];
+    $form_values = $form_state['values'];
+    $identity = $form_values['identity'];
+  
+    // Check if it's a Webform.
+    $webform = strpos($form_id, 'webform_client_form_');
+    if ($webform !== FALSE) {
+      $form_values = $form_values['submitted'];
+    }
+   
+    if (!empty($identity)) {
+      // Make Lead Convert Api call.
+      $lead_id = seinfeld_lead_convert_call($identity, $form_id, $form_values);
+    }
+  }
+  
